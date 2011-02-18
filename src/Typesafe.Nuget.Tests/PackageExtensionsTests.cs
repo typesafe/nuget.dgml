@@ -69,13 +69,5 @@ namespace Typesafe.Nuget.Tests
 			Assert.AreEqual("dep (1.2.3)", p.GetLinkTo(dependency).Target);
 		}
 
-		[Test]
-		public void GetLinkTo_AssemblyReference_should_return_link_with_package_id_as_source()
-		{
-			var p = new TestPackage { Id = "test-package", Version = new Version("1.2.3") };
-			var r = new TestPackageAssemblyReference {Name = "ref"};
-
-			Assert.AreEqual("test-package", p.GetLinkTo(r).Source);
-		}
 	}
 }

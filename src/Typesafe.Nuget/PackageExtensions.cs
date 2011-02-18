@@ -1,16 +1,9 @@
-﻿using NuGet;
+﻿using System.Reflection;
+using NuGet;
 using Typesafe.Nuget.Dgml;
 
 namespace Typesafe.Nuget
 {
-	internal static class PackageAssemblyReferenceExtensions
-	{
-		public static string GetNodeName(this IPackageAssemblyReference reference)
-		{
-			return string.Format("{0}", reference.Name);
-		}
-	}
-
 	internal static class PackageExtensions
 	{
 		public static string GetNodeName(this IPackage package)
@@ -54,7 +47,7 @@ namespace Typesafe.Nuget
 			return new DirectedGraphLink { Source = package.GetNodeName(), Target = dependency.GetNodeName(), Category1 ="Package" };
 		}
 
-		public static DirectedGraphLink GetLinkTo(this IPackage package, IPackageAssemblyReference assemblyReference)
+		public static DirectedGraphLink GetLinkTo(this IPackage package, Assembly assemblyReference)
 		{
 			return new DirectedGraphLink { Source = package.GetNodeName(), Target = assemblyReference.GetNodeName(), Category1 = "Contains" };
 		}

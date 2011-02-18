@@ -13,6 +13,8 @@ namespace Typesafe.Nuget
 	{
 		private readonly IPackageRepository repository;
 		private readonly IDictionary<string, Assembly> referencedAssemblies = new Dictionary<string, Assembly>();
+		private IList<DirectedGraphNode> nodes;
+		private ICollection<DirectedGraphLink> links;
 
 		public GraphGenerator(PackageSource packageSource)
 		{
@@ -38,22 +40,22 @@ namespace Typesafe.Nuget
 
 		public DirectedGraph GenerateGraph()
 		{
-			var nodes = new List<DirectedGraphNode>();
-			var links = new List<DirectedGraphLink>();
+			nodes = new List<DirectedGraphNode>();
+			links = new List<DirectedGraphLink>();
 
-			GenerateGraph(nodes, links);
+			GenerateNodes();
 
 			return new DirectedGraph { Nodes = nodes.ToArray(), Links = links.ToArray() };
 		}
 
-		private void GenerateGraph(ICollection<DirectedGraphNode> nodes, ICollection<DirectedGraphLink> links)
+		private void GenerateNodes()
 		{
 			foreach (var package in repository.GetPackages())
 			{
 				var node = package.ToGraphNode(IncludeAssemblyReferences);
 				nodes.Add(node);
 
-				if (IncludeAssemblyReferences) WriteAssemblyReferences(package, links);
+				if (IncludeAssemblyReferences) WriteAssemblyReferences(package);
 
 				foreach (var dependency in package.Dependencies)
 				{
@@ -63,16 +65,46 @@ namespace Typesafe.Nuget
 			}
 		}
 
-		private static void WriteAssemblyReferences(IPackage package, ICollection<DirectedGraphLink> links)
+		private void WriteAssemblyReferences(IPackage package)
 		{
 			foreach (var assemblyReference in package.AssemblyReferences.Where(IsNonBclAssembly))
 			{
-				links.Add(package.GetLinkTo(assemblyReference));
+				var assembly = LoadAssembly(assemblyReference);
+				links.Add(package.GetLinkTo(assembly));
+				foreach (var referencedAssembly in assembly.GetReferencedAssemblies().Where(IsNonBclAssembly))
+				{
+					links.Add(assembly.GetLinkTo(referencedAssembly));
+				}
 			}
 		}
+
 		private static bool IsNonBclAssembly(IPackageAssemblyReference assemblyReference)
 		{
-			return !assemblyReference.Name.StartsWith("System") && !assemblyReference.Name.StartsWith("Microsoft");
+			var name = assemblyReference.Name;
+			return IsBclClassName(name);
+		}
+
+		private static bool IsNonBclAssembly(AssemblyName assemblyReference)
+		{
+			var name = assemblyReference.Name;
+			return IsBclClassName(name);
+		}
+
+		private static bool IsBclClassName(string name)
+		{
+			return !name.StartsWith("System") && !name.StartsWith("Microsoft") && !name.StartsWith("mscorlib");
+		}
+
+		private Assembly LoadAssembly(IPackageAssemblyReference reference)
+		{
+			if(!referencedAssemblies.ContainsKey(reference.Name))
+			{
+				var assembly = Assembly.ReflectionOnlyLoad(reference.GetStream().ReadAllBytes());
+				nodes.Add(assembly.ToGraphNode());
+				referencedAssemblies.Add(reference.Name, assembly);
+			}
+
+			return referencedAssemblies[reference.Name];
 		}
 	}
 }
